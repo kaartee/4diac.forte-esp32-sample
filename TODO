@@ -1,6 +1,6 @@
 - Implement filesystem read for Zephyr in 4diac FORTE, see:
     lib/org.eclipse.4diac.forte/src/arch/zephyr/zephyrforte_fileio.cpp
-- Fix build order that sometimes causes this project to fail on missing *syscall*.h
+- Fix build order that sometimes causes this project to fail on missing syscall_list.h
 - RTL8720 PHYs need a patch to the board esp32_ethernet_kit's board_init.c:
     #define IP101GRI_RESET_N_PIN    16
 - Develop branch of 4diac FORTE does not fit in current flash partions.
