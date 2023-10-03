@@ -1,0 +1,9 @@
+mainmenu "4diac FORTE example"
+
+config UPDATE_FORTE_BOOTFILE
+	bool "Update the 4diac FORTE flash fs bootfile from a char array that is embedded in main.c"
+	help
+	  This option enables the update of the 4diac FORTE flash fs bootfile
+	  from a char array that is embedded in main.c.
+
+source "Kconfig.zephyr"
