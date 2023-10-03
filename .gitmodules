@@ -1,0 +1,4 @@
+[submodule "lib/org.eclipse.4diac.forte"]
+	path = lib/org.eclipse.4diac.forte
+	url = https://github.com/dok-net/org.eclipse.4diac.forte.git
+	branch = zephyr_port_master
