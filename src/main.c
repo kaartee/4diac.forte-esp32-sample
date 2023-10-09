@@ -10,7 +10,10 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/fs/fs.h>
 
+#include <stdlib.h>
+
 #include "../lib/org.eclipse.4diac.forte/src/arch/zephyr/forte_Init.h"
+#include "../lib/org.eclipse.4diac.forte/src/arch/forte_fileio.h"
 
 #ifndef CONFIG_FPU_SHARING
 #define K_FP_REGS 0
@@ -60,11 +63,23 @@ void forte_fn(void* arg1, void* arg2, void* arg3) {
 
 #ifdef CONFIG_UPDATE_FORTE_BOOTFILE
 	struct fs_file_t file = { 0 };
-  	fs_file_t_init(&file);
+	fs_file_t_init(&file);
 	if (0 == fs_open(&file, bootFile, FS_O_WRITE | FS_O_CREATE)) {
 		fs_write(&file, bootCmds, strlen(bootCmds));
 		fs_close(&file);
 	}
+	void* file;
+	size_t n = 0;
+	char* str = NULL;
+	if ((file = forte_fopen(bootFile, "r")) != 0) {
+		ssize_t cnt;
+		int i = 0;
+		while ((cnt = forte_getline(&str, &n, file)) > 0) {
+		LOG_DBG("bootFile (%d) = ###%s###", ++i, str);
+		}
+		forte_fclose(file);
+	}
+	if (str) free(str);
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 	char* arguments[] = { progName, flag, bootFile };
@@ -93,22 +108,22 @@ static void handler(struct net_mgmt_event_callback *cb,
 		char buf[NET_IPV4_ADDR_LEN];
 
 		if (iface->config.ip.ipv4->unicast[i].addr_type !=
-							NET_ADDR_DHCP) {
+			NET_ADDR_DHCP) {
 			continue;
 		}
 
-		LOG_INF("   Address[%d]: %s", net_if_get_by_iface(iface),
+		LOG_INF("  Address[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,
-			    &iface->config.ip.ipv4->unicast[i].address.in_addr,
-						  buf, sizeof(buf)));
-		LOG_INF("    Subnet[%d]: %s", net_if_get_by_iface(iface),
+			&iface->config.ip.ipv4->unicast[i].address.in_addr,
+			buf, sizeof(buf)));
+		LOG_INF("  Subnet[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,
-				       &iface->config.ip.ipv4->netmask,
-				       buf, sizeof(buf)));
-		LOG_INF("    Router[%d]: %s", net_if_get_by_iface(iface),
+			&iface->config.ip.ipv4->netmask,
+			buf, sizeof(buf)));
+		LOG_INF("  Router[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,
-						 &iface->config.ip.ipv4->gw,
-						 buf, sizeof(buf)));
+			&iface->config.ip.ipv4->gw,
+			buf, sizeof(buf)));
 		LOG_INF("Lease time[%d]: %u seconds", net_if_get_by_iface(iface),
 			iface->config.dhcpv4.lease_time);
 	}
@@ -122,9 +137,9 @@ static void handler(struct net_mgmt_event_callback *cb,
 }
 
 static void option_handler(struct net_dhcpv4_option_callback *cb,
-			   size_t length,
-			   enum net_dhcpv4_msg_type msg_type,
-			   struct net_if *iface)
+			size_t length,
+			enum net_dhcpv4_msg_type msg_type,
+			struct net_if *iface)
 {
 	char buf[NET_IPV4_ADDR_LEN];
 
@@ -137,12 +152,12 @@ int main(void)
 	LOG_INF("Run dhcpv4 client");
 
 	net_mgmt_init_event_callback(&mgmt_cb, handler,
-				     NET_EVENT_IPV4_ADDR_ADD);
+		NET_EVENT_IPV4_ADDR_ADD);
 	net_mgmt_add_event_callback(&mgmt_cb);
 
 	net_dhcpv4_init_option_callback(&dhcp_cb, option_handler,
-					DHCP_OPTION_NTP, ntp_server,
-					sizeof(ntp_server));
+		DHCP_OPTION_NTP, ntp_server,
+		sizeof(ntp_server));
 
 	net_dhcpv4_add_option_callback(&dhcp_cb);
 
