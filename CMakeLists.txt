@@ -8,6 +8,8 @@ project(app)
 FILE(GLOB app_sources src/*.c)
 target_sources(app PRIVATE ${app_sources})
 
+# 4diac FORTE as Zephyr library module
+
 zephyr_get_compile_definitions_for_lang_as_string(CXX cxx_definitions)
 zephyr_get_compile_options_for_lang_as_string(CXX cxx_options)
 zephyr_get_include_directories_for_lang_as_string(CXX cxx_includes)
@@ -26,16 +28,42 @@ ExternalProject_Add(forte
 	SOURCE_DIR ${forte_src_dir}
 	BINARY_DIR ${forte_src_dir}/bin/zephyr
 	CONFIGURE_COMMAND
-		cmake -G "Ninja" -DCMAKE_C_COMPILER_WORKS=ON -DCMAKE_CXX_COMPILER_WORKS=ON -DNULLPTR_SUPPORTED=ON -DCMAKE_SYSTEM_NAME=Generic -DFORTE_ARCHITECTURE=Zephyr -DFORTE_TESTS=OFF -DFORTE_SUPPORT_BOOT_FILE=ON -DFORTE_MODULE_CONVERT=ON -DFORTE_BUILD_EXECUTABLE=OFF -DFORTE_BUILD_STATIC_LIBRARY=ON -DFORTE_MODULE_IEC61131=ON -DCMAKE_C_FLAGS_DEBUG=-g -DCMAKE_BUILD_TYPE=MINSIZEREL -DFORTE_COM_ETH=ON -DFORTE_COM_FBDK=ON -DFORTE_COM_LOCAL=ON -DFORTE_MODULE_UTILS=ON -DFORTE_SOURCE_DIR=${forte_src_dir} -DFORTE_EXTERNAL_MODULES_DIRECTORY=${forte_src_dir}/ExportedFBs -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_CXX_FLAGS=${external_project_cxxflags} ../../
+		cmake -G "Ninja"
+			-DCMAKE_C_COMPILER_WORKS=ON
+			-DCMAKE_CXX_COMPILER_WORKS=ON
+			-DNULLPTR_SUPPORTED=ON
+			-DCMAKE_SYSTEM_NAME=Generic
+			-DFORTE_ARCHITECTURE=Zephyr
+			-DFORTE_TESTS=OFF
+			-DFORTE_SUPPORT_BOOT_FILE=ON
+			-DFORTE_MODULE_CONVERT=ON
+			-DFORTE_BUILD_EXECUTABLE=OFF
+			-DFORTE_BUILD_STATIC_LIBRARY=ON
+			-DFORTE_MODULE_IEC61131=ON
+			-DCMAKE_C_FLAGS_DEBUG=-g
+			-DCMAKE_BUILD_TYPE=MINSIZEREL
+			-DFORTE_LOGLEVEL=NOLOG
+			-DFORTE_COM_ETH=ON
+			-DFORTE_COM_FBDK=ON
+			-DFORTE_COM_LOCAL=ON
+			-DFORTE_MODULE_UTILS=ON
+			-DFORTE_SOURCE_DIR=${forte_src_dir}
+			-DFORTE_EXTERNAL_MODULES_DIRECTORY=${forte_src_dir}/ExportedFBs
+			-DFORTE_MODULE_EXTERNAL_PIDS=ON
+			-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+			-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+			-DCMAKE_CXX_FLAGS=${external_project_cxxflags}
+			../../
 	BUILD_COMMAND
 		ninja
 	BUILD_BYPRODUCTS ${FORTE_LIB_DIR}/libforte-static.a
 	INSTALL_COMMAND ""
 )
 
+add_dependencies(forte kernel)
+
 add_library(forte_lib STATIC IMPORTED GLOBAL)
 add_dependencies(forte_lib forte)
 set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-static.a)
-target_link_libraries(forte_lib INTERFACE kernel)
 target_link_libraries(app PUBLIC forte_lib)
 
