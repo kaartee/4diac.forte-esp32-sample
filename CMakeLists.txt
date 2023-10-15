@@ -40,7 +40,7 @@ ExternalProject_Add(forte
 			-DFORTE_BUILD_EXECUTABLE=OFF
 			-DFORTE_BUILD_STATIC_LIBRARY=ON
 			-DFORTE_MODULE_IEC61131=ON
-			-DCMAKE_C_FLAGS_DEBUG=-g
+			-DCMAKE_C_FLAGS_DEBUG="-g"
 			-DCMAKE_BUILD_TYPE=MINSIZEREL
 			-DFORTE_LOGLEVEL=NOLOG
 			-DFORTE_COM_ETH=ON
@@ -60,7 +60,7 @@ ExternalProject_Add(forte
 	INSTALL_COMMAND ""
 )
 
-add_dependencies(forte kernel)
+add_dependencies(forte zephyr_interface)
 
 add_library(forte_lib STATIC IMPORTED GLOBAL)
 add_dependencies(forte_lib forte)
