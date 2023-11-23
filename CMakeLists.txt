@@ -41,7 +41,7 @@ ExternalProject_Add(forte
 			-DFORTE_MODULE_CONVERT=ON
 			-DFORTE_MODULE_IEC61131=ON
 			-DFORTE_IO=ON
-			-DFORTE_MODULE_ZEPHYR_MODULAR_IO=ON
+			-DFORTE_IO_ZEPHYR=ON
 			-DFORTE_COM_ETH=ON
 			-DFORTE_COM_FBDK=ON
 			-DFORTE_COM_LOCAL=ON
@@ -67,5 +67,6 @@ add_dependencies(forte zephyr_interface)
 add_library(forte_lib STATIC IMPORTED GLOBAL)
 add_dependencies(forte_lib forte)
 set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-static.a)
+target_include_directories(forte_lib INTERFACE ${forte_src_dir}/src/arch)
 target_link_libraries(app PUBLIC forte_lib)
 
