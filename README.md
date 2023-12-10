@@ -8,14 +8,23 @@ zephyrproject/
               forte/    <- the sample application
 ```
 
-Depending on the PHY on your ESP32 board, you may have to alter the RESET_N GPIO in zephyrproject/zephyr/boards/xtensa/esp32_ethernet_kit/board_init.c, the boards with an RTL8720 require:
+Next:
+
+```
+west update
+```
+
+Depending on the PHY on your ESP32 board, you may have to alter the RESET_N GPIO in `zephyrproject/zephyr/boards/xtensa/esp32_ethernet_kit/board_init.c`, the boards with an RTL8720 require:
 
 `#define IP101GRI_RESET_N_PIN	16 // 5`
+
+Also, patch the partition table descriptor in `zephyrproject/modules/hal/espressif/components/partition_table/partitions_singleapp.csv` to accomodate a 2MB application size:
+
+`factory,  app,  factory, ,        2M,`
 
 Then:
 
 ```
-west update
 west build -p always -b esp32_ethernet_kit forte
 ```
 
