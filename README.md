@@ -14,9 +14,18 @@ Next:
 west update
 ```
 
-Depending on the PHY on your ESP32 board, you may have to alter the RESET_N GPIO in `zephyrproject/zephyr/boards/xtensa/esp32_ethernet_kit/board_init.c`, the boards with an RTL8720 require:
+Depending on the type of the PHY on your ESP32 board, you may have to alter the RESET_N GPIO in `zephyrproject/zephyr/boards/xtensa/esp32_ethernet_kit/board_init.c`.
+Boards, like the WT32-ETH01 with an RTL8720 PHY, use IO16 instead of IO5:
 
 `#define IP101GRI_RESET_N_PIN	16 // 5`
+
+In order to support full HW reset of the PHY, a hardware modification of WT32-ETH01 at least up to version 1.4 can be performed:
+
+Connect IO16_OSC_EN, hence EN of OSC50MHZ, to nRST of the RTL8720 PHY.
+
+Steps:
+- Completely remove R43
+- From the lead between C18 and R43 a connection to the lead between R50 and OSC50MHZ EN gets soldered
 
 Also, patch the partition table descriptor in `zephyrproject/modules/hal/espressif/components/partition_table/partitions_singleapp.csv` to accomodate a 2MB application size:
 
