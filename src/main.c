@@ -15,9 +15,10 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 #include "../lib/org.eclipse.4diac.forte/src/arch/zephyr/forte_Init.h"
 #include "../lib/org.eclipse.4diac.forte/src/arch/forte_fileio.h"
 
-#ifndef CONFIG_FPU_SHARING
+#ifndef K_FP_REGS
 #define K_FP_REGS 0
-#endif // CONFIG_FPU_SHARING
+#endif // K_FP_REGS
+
 
 #define DHCP_OPTION_NTP (42)
 
