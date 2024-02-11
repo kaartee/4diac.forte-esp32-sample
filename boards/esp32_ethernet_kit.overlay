@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/esp32-pinctrl.h>
+
 &eth {
 	status = "okay";
 };
@@ -14,6 +17,10 @@
 
 &mdio {
 	status = "okay";
+};
+
+&wifi {
+	status = "disabled";
 };
 
 &flash0 {
@@ -43,6 +50,27 @@
 	};
 };
 
+&pinctrl {
+	ledc0_default:  ledc0_default {
+		group1 {
+			pinmux = <LEDC_CH0_GPIO33>;
+			output-enable;
+		};
+	};
+};
+
+&ledc0 {
+	pinctrl-0 = <&ledc0_default>;
+	pinctrl-names = "default";
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	channel0@0 {
+		reg = <0x0>;
+		timer = <0>;
+	};
+};
+
 / {
 	zephyr,user {
 		io-channels =
@@ -52,6 +80,7 @@
    	aliases {
    		led0 = &led0;
    		sw0 = &button0;
+		pwm0 = &pwm0;
    	};
 
    	leds {
@@ -65,6 +94,13 @@
 		compatible = "gpio-keys";
 		button0: button_0 {
 			gpios = <&gpio0 5 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm0: pwm_led_gpio1_1 {
+			pwms = <&ledc0 0 PWM_HZ(100) PWM_POLARITY_NORMAL>;
 		};
 	};
 
