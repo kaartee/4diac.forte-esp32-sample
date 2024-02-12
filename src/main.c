@@ -84,12 +84,13 @@ void forte_fn(void* arg1, void* arg2, void* arg3) {
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 	char* arguments[] = { progName, flag, bootFile };
-	int resultForte = forteStartInstanceGeneric(3, arguments, &forteInstance);
+	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
+	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
 
-	if(FORTE_OK == resultForte){
+	if(FORTE_OK == resultForte) {
 		LOG_DBG("Started forte");
 		forteJoinInstance(forteInstance);
-	}else{
+	} else {
 		LOG_DBG("Error %d: Couldn't start forte", resultForte);
 	}
 	forteGlobalDeinitialize();
