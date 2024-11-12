@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 
 #include <stdlib.h>
 
-#include <zephyr/forte_Init.h>
+#include <c_interface/forte_c.h>
 
 #ifndef K_FP_REGS
 #define K_FP_REGS 0
@@ -58,8 +58,6 @@ char* bootCmds =
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 void forte_fn(void* arg1, void* arg2, void* arg3) {
-	forteGlobalInitialize();
-	TForteInstance forteInstance = 0;
 	char progName[] = "forte";
 	char flag[] = "-f";
 	char bootFile[] = "/lfs1/bootfile.txt";
@@ -75,11 +73,13 @@ void forte_fn(void* arg1, void* arg2, void* arg3) {
 
 	char* arguments[] = { progName, flag, bootFile };
 	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
+	TForteInstance forteInstance = 0;
+	forteGlobalInitialize(argumentsCount, arguments);
 	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
 
 	if(FORTE_OK == resultForte) {
 		LOG_DBG("Started forte");
-		forteJoinInstance(forteInstance);
+		forteWaitForInstanceToStop(forteInstance);
 	} else {
 		LOG_DBG("Error %d: Couldn't start forte", resultForte);
 	}
