@@ -1,5 +1,5 @@
 This is an example project that builds without modification for the ESP32 Ethernet kit boards, like WT32-ETH01, LILYGO T-INTERNET-POE, Espressif's ESP32-Ethernet-Kit.
-Setup Zephyr according to the getting-started guide (https://docs.zephyrproject.org/latest/develop/getting_started/index.html).
+Setup Zephyr, release 3.7 LTS, or a later release, according to the getting-started guide (https://docs.zephyrproject.org/latest/develop/getting_started/index.html).
 Next, clone the example project, such that you have a standard directory layout for applications like this:
 
 ```

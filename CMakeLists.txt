@@ -38,6 +38,7 @@ ExternalProject_Add(forte
 			-DFORTE_SUPPORT_BOOT_FILE=ON
 			-DFORTE_BUILD_EXECUTABLE=OFF
 			-DFORTE_BUILD_STATIC_LIBRARY=ON
+			-DFORTE_C_INTERFACE=ON
 			-DFORTE_MODULE_CONVERT=ON
 			-DFORTE_MODULE_IEC61131=ON
 			-DFORTE_IO=ON
@@ -49,7 +50,7 @@ ExternalProject_Add(forte
 			-DFORTE_EXTERNAL_MODULES_DIRECTORY=${forte_src_dir}/ExportedFBs
 			-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 			-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-			-DFORTE_LOGLEVEL=LOGINFO
+			-DFORTE_LOGLEVEL=NOLOG
 			-DCMAKE_BUILD_TYPE=MINSIZEREL
 			-DCMAKE_C_FLAGS_DEBUG="-g"
 			-DCMAKE_CXX_FLAGS=${external_project_cxxflags}
@@ -57,7 +58,7 @@ ExternalProject_Add(forte
 			../../
 	BUILD_COMMAND
 		ninja
-	BUILD_BYPRODUCTS ${FORTE_LIB_DIR}/libforte-static.a
+	BUILD_BYPRODUCTS ${FORTE_LIB_DIR}/libforte-c-static.a
 	INSTALL_COMMAND ""
 )
 
@@ -65,7 +66,7 @@ add_dependencies(forte zephyr_interface)
 
 add_library(forte_lib STATIC IMPORTED GLOBAL)
 add_dependencies(forte_lib forte)
-set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-static.a)
+set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-c-static.a)
 target_include_directories(forte_lib INTERFACE ${forte_src_dir}/src/arch)
 target_link_libraries(app PUBLIC forte_lib)
 

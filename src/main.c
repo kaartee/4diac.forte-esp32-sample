@@ -12,8 +12,7 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 
 #include <stdlib.h>
 
-#include "../lib/org.eclipse.4diac.forte/src/arch/zephyr/forte_Init.h"
-#include "../lib/org.eclipse.4diac.forte/src/arch/forte_fileio.h"
+#include <c_interface/forte_c.h>
 
 #ifndef K_FP_REGS
 #define K_FP_REGS 0
@@ -38,6 +37,9 @@ static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 }
 
 #ifdef CONFIG_UPDATE_FORTE_BOOTFILE
+
+#include <zephyr/forte_fileio.h>
+
 char* bootCmds =
 ";<Request ID=\"2\" Action=\"CREATE\"><FB Name=\"Blinky_RES\" Type=\"EMB_RES\" /></Request>\n"
 "Blinky_RES;<Request ID=\"3\" Action=\"CREATE\"><FB Name=\"E_SWITCH\" Type=\"E_SWITCH\" /></Request>\n"
@@ -56,8 +58,6 @@ char* bootCmds =
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 void forte_fn(void* arg1, void* arg2, void* arg3) {
-	forteGlobalInitialize();
-	TForteInstance forteInstance = 0;
 	char progName[] = "forte";
 	char flag[] = "-f";
 	char bootFile[] = "/lfs1/bootfile.txt";
@@ -69,27 +69,17 @@ void forte_fn(void* arg1, void* arg2, void* arg3) {
 		fs_write(&file, bootCmds, strlen(bootCmds));
 		fs_close(&file);
 	}
-	void* file;
-	size_t n = 0;
-	char* str = NULL;
-	if ((file = forte_fopen(bootFile, "r")) != 0) {
-		ssize_t cnt;
-		int i = 0;
-		while ((cnt = forte_getline(&str, &n, file)) > 0) {
-		LOG_DBG("bootFile (%d) = ###%s###", ++i, str);
-		}
-		forte_fclose(file);
-	}
-	if (str) free(str);
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 	char* arguments[] = { progName, flag, bootFile };
 	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
+	TForteInstance forteInstance = 0;
+	forteGlobalInitialize(argumentsCount, arguments);
 	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
 
 	if(FORTE_OK == resultForte) {
 		LOG_DBG("Started forte");
-		forteJoinInstance(forteInstance);
+		forteWaitForInstanceToStop(forteInstance);
 	} else {
 		LOG_DBG("Error %d: Couldn't start forte", resultForte);
 	}
@@ -109,18 +99,18 @@ static void handler(struct net_mgmt_event_callback *cb,
 	for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
 		char buf[NET_IPV4_ADDR_LEN];
 
-		if (iface->config.ip.ipv4->unicast[i].addr_type !=
+		if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type !=
 			NET_ADDR_DHCP) {
 			continue;
 		}
 
 		LOG_INF("  Address[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,
-			&iface->config.ip.ipv4->unicast[i].address.in_addr,
+			&iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
 			buf, sizeof(buf)));
 		LOG_INF("  Subnet[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,
-			&iface->config.ip.ipv4->netmask,
+			&iface->config.ip.ipv4->unicast[i].netmask,
 			buf, sizeof(buf)));
 		LOG_INF("  Router[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(AF_INET,

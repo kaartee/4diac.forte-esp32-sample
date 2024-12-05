@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-&enet {
-	status = "okay";
-};
-
 / {
-
 	fstab {
 		compatible = "zephyr,fstab";
 		lfs1: lfs1 {
@@ -24,19 +19,44 @@
 			block-cycles = <512>;
 		};
 	};
+
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+	};
+};
+
+&enet {
+	status = "okay";
 };
 
 &w25q64jvxgim {
-	zephyr,flash {
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
+	status = "okay";
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-			storage_partition: partition@0 {
-				label = "storage";
-				reg = <0x00000000 DT_SIZE_M(8)>;
-			};
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(128)>;
+		};
+
+		/* The MCUBoot swap-move algorithm uses the last 2 sectors
+		* of the primary slot0 for swap status and move.
+		*/
+		slot0_partition: partition@20000 {
+			label = "image-0";
+			reg = <0x00020000 (DT_SIZE_K(1980) + DT_SIZE_K(8))>;
+		};
+
+		slot1_partition: partition@211000 {
+			label = "image-1";
+			reg = <0x00211000 DT_SIZE_K(1980)>;
+		};
+
+		storage_partition: partition@400000 {
+			label = "storage";
+			reg = <0x00400000 DT_SIZE_M(8)>;
 		};
 	};
 };
