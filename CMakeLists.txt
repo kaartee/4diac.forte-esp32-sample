@@ -19,6 +19,10 @@ set(external_project_cxxflags
 	"${cxx_definitions} ${cxx_options} ${cxx_includes} ${cxx_system_includes} -Wno-error"
 )
 
+set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE "-Wl,--whole-archive" "<LINK_ITEM>" "-Wl,--no-whole-archive")
+set(CMAKE_LINK_LIBRARY_WHOLE_ARCHIVE_ATTRIBUTES LIBRARY_TYPE=STATIC DEDUPLICATION=YES OVERRIDE=DEFAULT)
+set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED TRUE)
+
 include(ExternalProject)
 
 set(forte_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/lib/org.eclipse.4diac.forte)
@@ -26,7 +30,6 @@ set(FORTE_LIB_DIR ${forte_src_dir}/bin/zephyr/src)
 
 ExternalProject_Add(forte
 	SOURCE_DIR ${forte_src_dir}
-	BINARY_DIR ${forte_src_dir}/bin/zephyr
 	CONFIGURE_COMMAND
 		cmake -G "Ninja"
 			-DCMAKE_C_COMPILER_WORKS=ON

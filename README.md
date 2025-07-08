@@ -1,5 +1,5 @@
 This is an example project that builds without modification for the ESP32 Ethernet kit boards, like WT32-ETH01, LILYGO T-INTERNET-POE, Espressif's ESP32-Ethernet-Kit.
-Setup Zephyr, release 3.7 LTS, or a later release, according to the getting-started guide (https://docs.zephyrproject.org/latest/develop/getting_started/index.html).
+Setup Zephyr, release X (temporarily, use the branch collab-sdk-0.18-dev), or a later release, according to the getting-started guide (https://docs.zephyrproject.org/latest/develop/getting_started/index.html).
 Next, clone the example project, such that you have a standard directory layout for applications like this:
 
 ```
@@ -19,6 +19,35 @@ Boards, like the WT32-ETH01 with an RTL8720 PHY, use IO16 instead of IO5:
 
 `#define IP101GRI_RESET_N_PIN	16 // 5`
 
+The latest 4diac FORTE requires C++ 20 support is only available in the Zephyr 0.18 alpha SDK. Please set that up instead of the 0.17 series.
+
+Also, please modify `zephyrproject/zephyr/include/zephyr/kernel.h`:
+
+```
+--- a/include/zephyr/kernel.h
++++ b/include/zephyr/kernel.h
+@@ -6079,9 +6079,7 @@ struct k_poll_event {
+ 	.state = K_POLL_STATE_NOT_READY, \
+ 	.mode = _event_mode, \
+ 	.unused = 0, \
+-	{ \
+ 		.typed_##_event_type = _event_obj, \
+-	}, \
+ 	}
+ 
+ #define K_POLL_EVENT_STATIC_INITIALIZER(_event_type, _event_mode, _event_obj, \
+@@ -6092,9 +6090,7 @@ struct k_poll_event {
+ 	.state = K_POLL_STATE_NOT_READY, \
+ 	.mode = _event_mode, \
+ 	.unused = 0, \
+-	{ \
+ 		.typed_##_event_type = _event_obj, \
+-	}, \
+ 	}
+ 
+ /**
+```
+
 ## HW modification
 
 The WT32-ETH01, at least until version 1.4, doesn't reset the PHY. This can result in a hanging PHY on occasion, which cannot
@@ -34,16 +63,10 @@ Steps:
 - Completely remove R43
 - Solder a lead from either pad connected to the trace between C18 and R43 to either pad at the trace between R50 and OSC50MHZ EN
 
-## SW modification
-
-Also, patch the partition table descriptor in `zephyrproject/modules/hal/espressif/components/partition_table/partitions_singleapp.csv` to accomodate a 2MB application size:
-
-`factory,  app,  factory, ,        2M,`
-
-Then:
+## Building the firmware image
 
 ```
-west build -p always -b esp32_ethernet_kit forte
+west build -p always -b esp32_ethernet_kit/esp32/procpu --sysbuild -s forte
 ```
 
 For a completely clean rebuild, we recommend you to remove the build directories explicitly before building:
