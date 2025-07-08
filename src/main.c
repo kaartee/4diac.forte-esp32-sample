@@ -38,7 +38,7 @@ static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 
 #ifdef CONFIG_UPDATE_FORTE_BOOTFILE
 
-#include <zephyr/forte_fileio.h>
+#include <forte_fileio.h>
 
 char* bootCmds =
 ";<Request ID=\"2\" Action=\"CREATE\"><FB Name=\"Blinky_RES\" Type=\"EMB_RES\" /></Request>\n"
