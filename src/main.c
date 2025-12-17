@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 
 #include <stdlib.h>
 
-#include <c_interface/forte_c.h>
+// #include <c_interface/forte_c.h>
 
 #ifndef K_FP_REGS
 #define K_FP_REGS 0
@@ -58,9 +58,9 @@ char* bootCmds =
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
 void forte_fn(void* arg1, void* arg2, void* arg3) {
-	char progName[] = "forte";
-	char flag[] = "-f";
-	char bootFile[] = "/lfs1/bootfile.txt";
+//	char progName[] = "forte";
+//	char flag[] = "-f";
+//	char bootFile[] = "/lfs1/bootfile.txt";
 
 #ifdef CONFIG_UPDATE_FORTE_BOOTFILE
 	struct fs_file_t file = { 0 };
@@ -71,19 +71,19 @@ void forte_fn(void* arg1, void* arg2, void* arg3) {
 	}
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
-	char* arguments[] = { progName, flag, bootFile };
-	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
-	TForteInstance forteInstance = 0;
-	forteGlobalInitialize(argumentsCount, arguments);
-	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
-
-	if(FORTE_OK == resultForte) {
-		LOG_DBG("Started forte");
-		forteWaitForInstanceToStop(forteInstance);
-	} else {
-		LOG_DBG("Error %d: Couldn't start forte", resultForte);
-	}
-	forteGlobalDeinitialize();
+//	char* arguments[] = { progName, flag, bootFile };
+//	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
+//	TForteInstance forteInstance = 0;
+//	forteGlobalInitialize(argumentsCount, arguments);
+//	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
+//
+//	if(FORTE_OK == resultForte) {
+//		LOG_DBG("Started forte");
+//		forteWaitForInstanceToStop(forteInstance);
+//	} else {
+//		LOG_DBG("Error %d: Couldn't start forte", resultForte);
+//	}
+//	forteGlobalDeinitialize();
 }
 
 static void handler(struct net_mgmt_event_callback *cb,

@@ -25,11 +25,8 @@ set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED TRUE)
 
 include(ExternalProject)
 
-set(forte_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/lib/org.eclipse.4diac.forte)
-set(FORTE_LIB_DIR ${forte_src_dir}/bin/zephyr/src)
-
 ExternalProject_Add(forte
-	SOURCE_DIR ${forte_src_dir}
+	SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/org.eclipse.4diac.forte
 	CONFIGURE_COMMAND
 		cmake -G "Ninja"
 			-DCMAKE_C_COMPILER_WORKS=ON
@@ -50,26 +47,24 @@ ExternalProject_Add(forte
 			-DFORTE_COM_FBDK=ON
 			-DFORTE_COM_LOCAL=ON
 			-DFORTE_MODULE_UTILS=ON
-			-DFORTE_EXTERNAL_MODULES_DIRECTORY=${forte_src_dir}/ExportedFBs
+			-DFORTE_EXTERNAL_MODULES_DIRECTORY=ExportedFBs
 			-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 			-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
 			-DFORTE_LOGLEVEL=NOLOG
 			-DCMAKE_BUILD_TYPE=MINSIZEREL
 			-DCMAKE_C_FLAGS_DEBUG="-g"
 			-DCMAKE_CXX_FLAGS=${external_project_cxxflags}
-			-DFORTE_SOURCE_DIR=${forte_src_dir}
-			../../
+			../../..
 	BUILD_COMMAND
-		ninja
-	BUILD_BYPRODUCTS ${FORTE_LIB_DIR}/libforte-c-static.a
+		ninja ../../..
 	INSTALL_COMMAND ""
 )
 
 add_dependencies(forte zephyr_interface)
 
-add_library(forte_lib STATIC IMPORTED GLOBAL)
-add_dependencies(forte_lib forte)
-set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-c-static.a)
-target_include_directories(forte_lib INTERFACE ${forte_src_dir}/src/arch)
-target_link_libraries(app PUBLIC forte_lib)
+# add_library(forte_lib STATIC IMPORTED GLOBAL)
+# add_dependencies(forte_lib forte)
+# set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-c-static.a)
+# target_include_directories(forte_lib INTERFACE ${forte_src_dir}/src/arch)
+# target_link_libraries(app PUBLIC forte_lib)
 
