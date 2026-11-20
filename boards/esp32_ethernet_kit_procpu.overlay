@@ -7,6 +7,27 @@
 #include <zephyr/dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pinctrl/esp32-pinctrl.h>
 
+/ {
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+	};
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/delete-node/ partition@170000;
+
+		slot0_partition: partition@20000 {
+			label = "image-0";
+			reg = <0x00020000 0x00380000>;
+		};
+	};
+};
+
 &eth {
 	status = "okay";
 };
@@ -38,7 +59,7 @@
 };
 
 &pinctrl {
-	ledc0_default:  ledc0_default {
+	ledc0_default: ledc0_default {
 		group1 {
 			pinmux = <LEDC_CH0_GPIO33>;
 			output-enable;
@@ -64,18 +85,18 @@
 			<&adc0 0>;
 	};
 
-   	aliases {
-   		led0 = &led0;
-   		sw0 = &button0;
+	aliases {
+		led0 = &led0;
+		sw0 = &button0;
 		pwm0 = &pwm0;
-   	};
+	};
 
-   	leds {
-   		compatible = "gpio-leds";
-   		led0: led_0 {
-   			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
-                };
-   	};
+	leds {
+		compatible = "gpio-leds";
+		led0: led_0 {
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+		};
+	};
 
 	buttons {
 		compatible = "gpio-keys";
@@ -106,4 +127,3 @@
 		};
 	};
 };
-

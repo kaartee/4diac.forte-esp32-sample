@@ -1,31 +1,32 @@
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
-
 #include <zephyr/kernel.h>
 #include <zephyr/linker/sections.h>
 
 #include <zephyr/net/net_if.h>
+#include <zephyr/net/dhcpv4.h>
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/fs/fs.h>
+#include <zephyr/logging/log.h>
 
 #include <stdlib.h>
 
-#include <c_interface/forte_c.h>
+#include "forte/forteinstance.h"
+#include "forte/arch/forte_architecture.h"
+
+LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 
 #ifndef K_FP_REGS
 #define K_FP_REGS 0
 #endif // K_FP_REGS
 
-
 #define DHCP_OPTION_NTP (42)
 
 static uint8_t ntp_server[4];
-
 static struct net_mgmt_event_callback mgmt_cb;
-
 static struct net_dhcpv4_option_callback dhcp_cb;
+
+static forte::C4diacFORTEInstance g4diacForteInstance;
 
 static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 {
@@ -38,9 +39,9 @@ static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 
 #ifdef CONFIG_UPDATE_FORTE_BOOTFILE
 
-#include <forte_fileio.h>
+#include "forte/arch/forte_fileio.h"
 
-char* bootCmds =
+const char *bootCmds =
 ";<Request ID=\"2\" Action=\"CREATE\"><FB Name=\"Blinky_RES\" Type=\"EMB_RES\" /></Request>\n"
 "Blinky_RES;<Request ID=\"3\" Action=\"CREATE\"><FB Name=\"E_SWITCH\" Type=\"E_SWITCH\" /></Request>\n"
 "Blinky_RES;<Request ID=\"4\" Action=\"CREATE\"><FB Name=\"E_SR\" Type=\"E_SR\" /></Request>\n"
@@ -57,39 +58,39 @@ char* bootCmds =
 ;
 #endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
-void forte_fn(void* arg1, void* arg2, void* arg3) {
+void forte_fn(void *arg1, void *arg2, void *arg3)
+{
+	ARG_UNUSED(arg1);
+	ARG_UNUSED(arg2);
+	ARG_UNUSED(arg3);
+
+	LOG_INF("Starting Eclipse 4diac FORTE Runtime...");
+
 	char progName[] = "forte";
-	char flag[] = "-f";
-	char bootFile[] = "/lfs1/bootfile.txt";
-
-#ifdef CONFIG_UPDATE_FORTE_BOOTFILE
-	struct fs_file_t file = { 0 };
-	fs_file_t_init(&file);
-	if (0 == fs_open(&file, bootFile, FS_O_WRITE | FS_O_CREATE)) {
-		fs_write(&file, bootCmds, strlen(bootCmds));
-		fs_close(&file);
+	char *argv[] = { progName };
+	if (auto result = forte::arch::CForteArchitecture::initialize(1, argv); result != 0) {
+		LOG_ERR("Failed to initialize FORTE architecture: %d", result);
+		return;
 	}
-#endif // CONFIG_UPDATE_FORTE_BOOTFILE
 
-	char* arguments[] = { progName, flag, bootFile };
-	const ssize_t argumentsCount = ARRAY_SIZE(arguments);
-	TForteInstance forteInstance = 0;
-	forteGlobalInitialize(argumentsCount, arguments);
-	int resultForte = forteStartInstanceGeneric(argumentsCount, arguments, &forteInstance);
-
-	if(FORTE_OK == resultForte) {
-		LOG_DBG("Started forte");
-		forteWaitForInstanceToStop(forteInstance);
-	} else {
-		LOG_DBG("Error %d: Couldn't start forte", resultForte);
+	// Start FORTE listening on all interfaces, default port 61499
+	if (!g4diacForteInstance.startupNewDevice("0.0.0.0:61499")) {
+		LOG_ERR("Failed to start FORTE instance");
+		forte::arch::CForteArchitecture::deinitialize();
+		return;
 	}
-	forteGlobalDeinitialize();
+
+	LOG_INF("FORTE is running on port 61499. Ready for 4diac IDE connection.");
+	g4diacForteInstance.awaitDeviceShutdown();
+
+	forte::arch::CForteArchitecture::deinitialize();
 }
 
 static void handler(struct net_mgmt_event_callback *cb,
 	uint64_t mgmt_event,
 	struct net_if *iface)
 {
+	ARG_UNUSED(cb);
 	int i = 0;
 
 	if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
@@ -120,12 +121,17 @@ static void handler(struct net_mgmt_event_callback *cb,
 			iface->config.dhcpv4.lease_time);
 	}
 
-	const size_t stackSize = 2048;
-	k_thread_stack_t* stack = k_thread_stack_alloc(stackSize, 0);
-	if (stack == NULL) return;
-	struct k_thread* thread = k_malloc(sizeof(struct k_thread));
-	if (thread == NULL) return;
-	k_thread_create(thread, stack, stackSize, forte_fn, NULL, NULL, NULL, 10, K_FP_REGS, K_NO_WAIT);
+	// Increased stack size slightly for C++ runtime overhead
+	const size_t stackSize = 4096;
+	k_thread_stack_t *stack = k_thread_stack_alloc(stackSize, 0);
+	if (stack == nullptr) {
+		return;
+	}
+	auto *thread = static_cast<struct k_thread *>(k_malloc(sizeof(struct k_thread)));
+	if (thread == nullptr) {
+		return;
+	}
+	k_thread_create(thread, stack, stackSize, forte_fn, nullptr, nullptr, nullptr, 10, K_FP_REGS, K_NO_WAIT);
 }
 
 static void option_handler(struct net_dhcpv4_option_callback *cb,
@@ -133,13 +139,16 @@ static void option_handler(struct net_dhcpv4_option_callback *cb,
 			enum net_dhcpv4_msg_type msg_type,
 			struct net_if *iface)
 {
+	ARG_UNUSED(length);
+	ARG_UNUSED(msg_type);
+	ARG_UNUSED(iface);
 	char buf[NET_IPV4_ADDR_LEN];
 
 	LOG_INF("DHCP Option %d: %s", cb->option,
 		net_addr_ntop(AF_INET, cb->data, buf, sizeof(buf)));
 }
 
-int main(void)
+extern "C" int main(void)
 {
 	LOG_INF("Run dhcpv4 client");
 
@@ -153,8 +162,7 @@ int main(void)
 
 	net_dhcpv4_add_option_callback(&dhcp_cb);
 
-	net_if_foreach(start_dhcpv4_client, NULL);
+	net_if_foreach(start_dhcpv4_client, nullptr);
 
 	return 0;
 }
-

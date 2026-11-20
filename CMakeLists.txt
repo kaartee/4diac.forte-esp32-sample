@@ -1,75 +1,103 @@
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 4.5)
 
+# Standard Zephyr package initialization
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(app)
+project(forte_zephyr_app LANGUAGES C CXX)
 
-FILE(GLOB app_sources src/*.c)
-target_sources(app PRIVATE ${app_sources})
-
-# 4diac FORTE as Zephyr library module
-
-zephyr_get_compile_definitions_for_lang_as_string(CXX cxx_definitions)
-zephyr_get_compile_options_for_lang_as_string(CXX cxx_options)
-zephyr_get_include_directories_for_lang_as_string(CXX cxx_includes)
-zephyr_get_system_include_directories_for_lang_as_string(CXX cxx_system_includes)
-
-set(external_project_cxxflags
-	"${cxx_definitions} ${cxx_options} ${cxx_includes} ${cxx_system_includes} -Wno-error"
-)
-
-set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE "-Wl,--whole-archive" "<LINK_ITEM>" "-Wl,--no-whole-archive")
-set(CMAKE_LINK_LIBRARY_WHOLE_ARCHIVE_ATTRIBUTES LIBRARY_TYPE=STATIC DEDUPLICATION=YES OVERRIDE=DEFAULT)
-set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED TRUE)
+target_sources(app PRIVATE src/main.cpp)
 
 include(ExternalProject)
 
-set(forte_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/lib/org.eclipse.4diac.forte)
-set(FORTE_LIB_DIR ${forte_src_dir}/bin/zephyr/src)
+set(FORTE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/org.eclipse.4diac.forte")
+set(FORTE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/forte-build")
+set(FORTE_MAIN_LIB "${FORTE_BINARY_DIR}/libforte.a")
+set(FORTE_LD_FILE "${CMAKE_CURRENT_BINARY_DIR}/forte_libs.ld")
+set(FORTE_COLLECT_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/collect_forte_libs.cmake")
 
-ExternalProject_Add(forte
-	SOURCE_DIR ${forte_src_dir}
-	CONFIGURE_COMMAND
-		cmake -G "Ninja"
-			-DCMAKE_C_COMPILER_WORKS=ON
-			-DCMAKE_CXX_COMPILER_WORKS=ON
-			-DNULLPTR_SUPPORTED=ON
-			-DCMAKE_SYSTEM_NAME=Generic
-			-DFORTE_ARCHITECTURE=Zephyr
-			-DFORTE_TESTS=OFF
-			-DFORTE_SUPPORT_BOOT_FILE=ON
-			-DFORTE_BUILD_EXECUTABLE=OFF
-			-DFORTE_BUILD_STATIC_LIBRARY=ON
-			-DFORTE_C_INTERFACE=ON
-			-DFORTE_MODULE_CONVERT=ON
-			-DFORTE_MODULE_IEC61131=ON
-			-DFORTE_IO=ON
-			-DFORTE_IO_ESP32ETHERNETKIT=ON
-			-DFORTE_COM_ETH=ON
-			-DFORTE_COM_FBDK=ON
-			-DFORTE_COM_LOCAL=ON
-			-DFORTE_MODULE_UTILS=ON
-			-DFORTE_EXTERNAL_MODULES_DIRECTORY=${forte_src_dir}/ExportedFBs
-			-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-			-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-			-DFORTE_LOGLEVEL=NOLOG
-			-DCMAKE_BUILD_TYPE=MINSIZEREL
-			-DCMAKE_C_FLAGS_DEBUG="-g"
-			-DCMAKE_CXX_FLAGS=${external_project_cxxflags}
-			-DFORTE_SOURCE_DIR=${forte_src_dir}
-			../../
-	BUILD_COMMAND
-		ninja
-	BUILD_BYPRODUCTS ${FORTE_LIB_DIR}/libforte-c-static.a
-	INSTALL_COMMAND ""
+# 1. Extract Zephyr's flags (this strips single-arg $<TARGET_PROPERTY:prop> expressions)
+zephyr_get_include_directories_for_lang_as_string(C ZEPHYR_C_INCLUDES)
+zephyr_get_include_directories_for_lang_as_string(CXX ZEPHYR_CXX_INCLUDES)
+
+zephyr_get_compile_definitions_for_lang_as_string(C ZEPHYR_C_DEFINES)
+zephyr_get_compile_definitions_for_lang_as_string(CXX ZEPHYR_CXX_DEFINES)
+
+zephyr_get_compile_options_for_lang_as_string(C ZEPHYR_C_OPTIONS)
+zephyr_get_compile_options_for_lang_as_string(CXX ZEPHYR_CXX_OPTIONS)
+
+set(RAW_C_FLAGS "${CMAKE_C_FLAGS} ${ZEPHYR_C_OPTIONS} ${ZEPHYR_C_DEFINES} ${ZEPHYR_C_INCLUDES}")
+set(RAW_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ZEPHYR_CXX_OPTIONS} ${ZEPHYR_CXX_DEFINES} ${ZEPHYR_CXX_INCLUDES}")
+
+# 2. Use file(GENERATE) to evaluate the remaining $<JOIN:...> and $<TARGET_PROPERTY:compiler,...> expressions
+set(FORTE_CACHE_FILE "${CMAKE_CURRENT_BINARY_DIR}/forte_initial_cache.cmake")
+
+file(GENERATE OUTPUT "${FORTE_CACHE_FILE}" CONTENT "
+set(CMAKE_SYSTEM_NAME Generic CACHE STRING \"\" FORCE)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING \"\" FORCE)
+set(CMAKE_C_COMPILER [==[${CMAKE_C_COMPILER}]==] CACHE FILEPATH \"\" FORCE)
+set(CMAKE_CXX_COMPILER [==[${CMAKE_CXX_COMPILER}]==] CACHE FILEPATH \"\" FORCE)
+set(CMAKE_AR [==[${CMAKE_AR}]==] CACHE FILEPATH \"\" FORCE)
+set(CMAKE_RANLIB [==[${CMAKE_RANLIB}]==] CACHE FILEPATH \"\" FORCE)
+set(CMAKE_C_FLAGS [==[${RAW_C_FLAGS}]==] CACHE STRING \"\" FORCE)
+set(CMAKE_CXX_FLAGS [==[${RAW_CXX_FLAGS}]==] CACHE STRING \"\" FORCE)
+
+# Required by 4diac FORTE for static library linking
+set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE \"LINKER:--whole-archive\" \"<LINK_ITEM>\" \"LINKER:--no-whole-archive\" CACHE STRING \"\" FORCE)
+set(CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED TRUE CACHE BOOL \"\" FORCE)
+set(CMAKE_LINK_LIBRARY_WHOLE_ARCHIVE_ATTRIBUTES LIBRARY_TYPE=STATIC DEDUPLICATION=YES OVERRIDE=DEFAULT CACHE STRING \"\" FORCE)
+")
+
+# 3. Generate a build-time helper script that globs all compiled *.a files
+#    and writes a GNU linker script fragment (forte_libs.ld)
+file(WRITE "${FORTE_COLLECT_SCRIPT}" "
+file(GLOB_RECURSE ALL_FORTE_ARCHIVES \"${FORTE_BINARY_DIR}/*.a\")
+list(FILTER ALL_FORTE_ARCHIVES EXCLUDE REGEX \"CMakeFiles/\")
+set(LD_CONTENT \"INPUT(\\n\")
+foreach(archive IN LISTS ALL_FORTE_ARCHIVES)
+    string(APPEND LD_CONTENT \"  \\\"\${archive}\\\"\\n\")
+endforeach()
+string(APPEND LD_CONTENT \")\\n\")
+file(WRITE \"${FORTE_LD_FILE}\" \"\${LD_CONTENT}\")
+")
+
+# 4. Build FORTE and collect all generated .a archives right after compilation
+ExternalProject_Add(forte_external
+    DEPENDS zephyr_generated_headers
+    SOURCE_DIR "${FORTE_SOURCE_DIR}"
+    BINARY_DIR "${FORTE_BINARY_DIR}"
+    CMAKE_ARGS
+        -G "Ninja"
+        -C "${FORTE_CACHE_FILE}"
+        # FORTE Zephyr Architecture & Library Settings
+        -DFORTE_ARCHITECTURE=Zephyr
+        -DFORTE_BUILD_EXECUTABLE=OFF
+        -DFORTE_TESTS=OFF
+        -DFORTE_SUPPORT_BOOT_FILE=ON
+        # Function Block Modules
+        -DFORTE_MODULE_CONVERT=ON
+        -DFORTE_MODULE_IEC61131=ON
+        -DFORTE_IO=ON
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
+          COMMAND ${CMAKE_COMMAND} -P "${FORTE_COLLECT_SCRIPT}"
+    INSTALL_COMMAND ""
+    BUILD_BYPRODUCTS "${FORTE_MAIN_LIB}" "${FORTE_LD_FILE}"
 )
 
-add_dependencies(forte zephyr_interface)
+# Ensure forte_external finishes building and generating forte_libs.ld before 'app' links
+add_dependencies(app forte_external)
 
-add_library(forte_lib STATIC IMPORTED GLOBAL)
-add_dependencies(forte_lib forte)
-set_target_properties(forte_lib PROPERTIES IMPORTED_LOCATION ${FORTE_LIB_DIR}/libforte-c-static.a)
-target_include_directories(forte_lib INTERFACE ${forte_src_dir}/src/arch)
-target_link_libraries(app PUBLIC forte_lib)
+# Include FORTE source and generated headers for main.cpp
+target_include_directories(app PRIVATE
+    "${FORTE_SOURCE_DIR}/core/include"
+    "${FORTE_SOURCE_DIR}/core/arch/common/include"
+    "${FORTE_SOURCE_DIR}/core/arch/zephyr/include"
+    "${FORTE_BINARY_DIR}/core/include"
+    "${FORTE_BINARY_DIR}/include"
+    "${FORTE_BINARY_DIR}/core/src_gen"
+)
 
+# Pass the generated linker script fragment inside an atomic --whole-archive group
+target_link_libraries(app PRIVATE
+    "-Wl,--whole-archive,${FORTE_LD_FILE},--no-whole-archive"
+)
