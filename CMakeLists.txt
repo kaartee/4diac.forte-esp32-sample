@@ -77,6 +77,8 @@ ExternalProject_Add(forte_external
         # Function Block Modules
         -DFORTE_MODULE_CONVERT=ON
         -DFORTE_MODULE_IEC61131=ON
+        -DFORTE_MODULE_ZEPHYR=ON
+        -DFORTE_MODULE_ESP32ETHERNETKIT=ON
         -DFORTE_IO=ON
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
           COMMAND ${CMAKE_COMMAND} -P "${FORTE_COLLECT_SCRIPT}"
