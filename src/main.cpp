@@ -27,6 +27,7 @@ static struct net_mgmt_event_callback mgmt_cb;
 static struct net_dhcpv4_option_callback dhcp_cb;
 
 static forte::C4diacFORTEInstance g4diacForteInstance;
+static bool forte_started = false;
 
 static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 {
@@ -37,27 +38,6 @@ static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 	net_dhcpv4_start(iface);
 }
 
-#ifdef CONFIG_UPDATE_FORTE_BOOTFILE
-
-#include "forte/arch/forte_fileio.h"
-
-const char *bootCmds =
-";<Request ID=\"2\" Action=\"CREATE\"><FB Name=\"Blinky_RES\" Type=\"EMB_RES\" /></Request>\n"
-"Blinky_RES;<Request ID=\"3\" Action=\"CREATE\"><FB Name=\"E_SWITCH\" Type=\"E_SWITCH\" /></Request>\n"
-"Blinky_RES;<Request ID=\"4\" Action=\"CREATE\"><FB Name=\"E_SR\" Type=\"E_SR\" /></Request>\n"
-"Blinky_RES;<Request ID=\"5\" Action=\"CREATE\"><FB Name=\"E_CYCLE\" Type=\"E_CYCLE\" /></Request>\n"
-"Blinky_RES;<Request ID=\"6\" Action=\"WRITE\"><Connection Source=\"T#10ms\" Destination=\"E_CYCLE.DT\" /></Request>\n"
-"Blinky_RES;<Request ID=\"7\" Action=\"CREATE\"><Connection Source=\"E_SWITCH.EO0\" Destination=\"E_SR.S\" /></Request>\n"
-"Blinky_RES;<Request ID=\"8\" Action=\"CREATE\"><Connection Source=\"E_SWITCH.EO1\" Destination=\"E_SR.R\" /></Request>\n"
-"Blinky_RES;<Request ID=\"9\" Action=\"CREATE\"><Connection Source=\"E_CYCLE.EO\" Destination=\"E_SWITCH.EI\" /></Request>\n"
-"Blinky_RES;<Request ID=\"10\" Action=\"CREATE\"><Connection Source=\"START.COLD\" Destination=\"E_CYCLE.START\" /></Request>\n"
-"Blinky_RES;<Request ID=\"11\" Action=\"CREATE\"><Connection Source=\"START.WARM\" Destination=\"E_CYCLE.START\" /></Request>\n"
-"Blinky_RES;<Request ID=\"12\" Action=\"CREATE\"><Connection Source=\"START.STOP\" Destination=\"E_CYCLE.STOP\" /></Request>\n"
-"Blinky_RES;<Request ID=\"13\" Action=\"CREATE\"><Connection Source=\"E_SR.Q\" Destination=\"E_SWITCH.G\" /></Request>\n"
-"Blinky_RES;<Request ID=\"13\" Action=\"START\"/>\n"
-;
-#endif // CONFIG_UPDATE_FORTE_BOOTFILE
-
 void forte_fn(void *arg1, void *arg2, void *arg3)
 {
 	ARG_UNUSED(arg1);
@@ -67,8 +47,11 @@ void forte_fn(void *arg1, void *arg2, void *arg3)
 	LOG_INF("Starting Eclipse 4diac FORTE Runtime...");
 
 	char progName[] = "forte";
-	char *argv[] = { progName };
-	if (auto result = forte::arch::CForteArchitecture::initialize(1, argv); result != 0) {
+	char flag[] = "-f";
+	char bootFile[] = "/lfs1/forte.fboot";
+
+	char *argv[] = { progName, flag, bootFile };
+	if (auto result = forte::arch::CForteArchitecture::initialize(ARRAY_SIZE(argv), argv); result != 0) {
 		LOG_ERR("Failed to initialize FORTE architecture: %d", result);
 		return;
 	}
@@ -121,16 +104,24 @@ static void handler(struct net_mgmt_event_callback *cb,
 			iface->config.dhcpv4.lease_time);
 	}
 
+	if (forte_started) {
+		return;
+	}
+
 	// Increased stack size slightly for C++ runtime overhead
 	const size_t stackSize = 4096;
 	k_thread_stack_t *stack = k_thread_stack_alloc(stackSize, 0);
 	if (stack == nullptr) {
+		LOG_ERR("Failed to allocate FORTE thread stack (%zu bytes)", stackSize);
 		return;
 	}
 	auto *thread = static_cast<struct k_thread *>(k_malloc(sizeof(struct k_thread)));
 	if (thread == nullptr) {
+		LOG_ERR("Failed to allocate FORTE k_thread struct");
+		k_thread_stack_free(stack);
 		return;
 	}
+	forte_started = true;
 	k_thread_create(thread, stack, stackSize, forte_fn, nullptr, nullptr, nullptr, 10, K_FP_REGS, K_NO_WAIT);
 }
 
