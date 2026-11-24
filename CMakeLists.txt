@@ -85,6 +85,7 @@ ExternalProject_Add(forte_external
         -DFORTE_ARCHITECTURE=Zephyr
         -DFORTE_BUILD_EXECUTABLE=OFF
         -DFORTE_TESTS=OFF
+        -DFORTE_LOGLEVEL=LOGWARNING
         -DFORTE_SUPPORT_BOOT_FILE=ON
         -DFORTE_BOOT_FILE_LOCATION=/lfs1/forte.fboot
         -DFORTE_COM_ETH=ON

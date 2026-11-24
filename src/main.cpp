@@ -47,10 +47,7 @@ void forte_fn(void *arg1, void *arg2, void *arg3)
 	LOG_INF("Starting Eclipse 4diac FORTE Runtime...");
 
 	char progName[] = "forte";
-	char flag[] = "-f";
-	char bootFile[] = "/lfs1/forte.fboot";
-
-	char *argv[] = { progName, flag, bootFile };
+	char *argv[] = { progName };
 	if (auto result = forte::arch::CForteArchitecture::initialize(ARRAY_SIZE(argv), argv); result != 0) {
 		LOG_ERR("Failed to initialize FORTE architecture: %d", result);
 		return;
