@@ -6,6 +6,9 @@
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_mgmt.h>
+#if defined(CONFIG_WIFI_CREDENTIALS)
+#include <zephyr/net/wifi_mgmt.h>
+#endif
 #include <zephyr/fs/fs.h>
 #include <zephyr/logging/log.h>
 
@@ -22,7 +25,7 @@ LOG_MODULE_REGISTER(forte, LOG_LEVEL_DBG);
 
 #define DHCP_OPTION_NTP (42)
 
-static uint8_t ntp_server[4];
+static uint8_t ntp_server[4U];
 static struct net_mgmt_event_callback mgmt_cb;
 static struct net_dhcpv4_option_callback dhcp_cb;
 
@@ -151,6 +154,16 @@ extern "C" int main(void)
 	net_dhcpv4_add_option_callback(&dhcp_cb);
 
 	net_if_foreach(start_dhcpv4_client, nullptr);
+
+#if defined(CONFIG_WIFI_CREDENTIALS)
+	struct net_if *wifi_iface = net_if_get_first_wifi();
+	if (wifi_iface != nullptr) {
+		int err = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, wifi_iface, nullptr, 0);
+		if (err && err != -ENOENT) {
+			LOG_WRN("Stored Wi-Fi auto-connect request returned %d", err);
+		}
+	}
+#endif
 
 	return 0;
 }

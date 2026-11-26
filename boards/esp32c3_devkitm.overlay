@@ -1,0 +1,112 @@
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/pinctrl/esp32c3-pinctrl.h>
+
+/ {
+	aliases {
+		led0 = &user_led0;
+		pwm0 = &pwm_led0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		user_led0: led_0 {
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			label = "User LED0 (GPIO4)";
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_led0: pwm_led_0 {
+			pwms = <&ledc0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+			label = "PWM LED0 (GPIO5)";
+		};
+	};
+
+	zephyr,user {
+		io-channels = <&adc0 0>;
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&lfs_partition>;
+			automount;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+};
+
+&pinctrl {
+	ledc0_default: ledc0_default {
+		group1 {
+			pinmux = <LEDC_CH0_GPIO5>;
+			output-enable;
+		};
+	};
+};
+
+&ledc0 {
+	pinctrl-0 = <&ledc0_default>;
+	pinctrl-names = "default";
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	channel0@0 {
+		reg = <0x0>;
+		timer = <0>;
+	};
+};
+
+&adc0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_4";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+};
+
+&wifi {
+	status = "okay";
+};
+
+/delete-node/ &storage_partition;
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0x00010000>;
+		};
+
+		slot0_partition: partition@20000 {
+			label = "image-0";
+			reg = <0x00020000 0x00380000>;
+		};
+
+		storage_partition: partition@3a0000 {
+			label = "storage";
+			reg = <0x003a0000 0x00010000>;
+		};
+
+		lfs_partition: partition@3b0000 {
+			label = "lfs_storage";
+			reg = <0x003b0000 0x00050000>;
+		};
+	};
+};

@@ -73,6 +73,14 @@ string(APPEND LD_CONTENT \")\\n\")
 file(WRITE \"${FORTE_LD_FILE}\" \"\${LD_CONTENT}\")
 ")
 
+# Select board-specific FORTE hardware I/O module
+set(FORTE_BOARD_MODULE_ARGS "")
+if("${BOARD}" STREQUAL "esp32_ethernet_kit")
+    list(APPEND FORTE_BOARD_MODULE_ARGS -DFORTE_MODULE_ESP32ETHERNETKIT=ON)
+elseif("${BOARD}" STREQUAL "esp32c3_devkitm")
+    list(APPEND FORTE_BOARD_MODULE_ARGS -DFORTE_MODULE_ESP32C3DEVKITM=ON)
+endif()
+
 # 4. Build FORTE and collect all generated .a archives right after compilation
 ExternalProject_Add(forte_external
     DEPENDS zephyr_generated_headers
@@ -92,7 +100,7 @@ ExternalProject_Add(forte_external
         # Function Block Modules
         -DFORTE_MODULE_CONVERT=OFF
         -DFORTE_MODULE_IEC61131=ON
-        -DFORTE_MODULE_ESP32ETHERNETKIT=ON
+        ${FORTE_BOARD_MODULE_ARGS}
         -DFORTE_IO=ON
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
           COMMAND ${CMAKE_COMMAND} -P "${FORTE_COLLECT_SCRIPT}"
@@ -118,12 +126,15 @@ target_link_libraries(app PRIVATE
     "-Wl,--whole-archive,${FORTE_LD_FILE},--no-whole-archive"
 )
 
-# 5. Pack lfs_root/ into a LittleFS image matching storage_partition in devicetree
+# 5. Pack lfs_root/ into a LittleFS image matching lfs_partition or storage_partition in devicetree
 find_program(MKLITTLEFS_EXE mklittlefs)
 set(LFS_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lfs_root")
 set(LFS_BIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/littlefs.bin")
 
-dt_nodelabel(STORAGE_PART_NODE NODELABEL "storage_partition")
+dt_nodelabel(STORAGE_PART_NODE NODELABEL "lfs_partition")
+if(NOT STORAGE_PART_NODE)
+    dt_nodelabel(STORAGE_PART_NODE NODELABEL "storage_partition")
+endif()
 if(STORAGE_PART_NODE)
     dt_reg_addr(STORAGE_PART_ADDR PATH "${STORAGE_PART_NODE}")
     dt_reg_size(STORAGE_PART_SIZE PATH "${STORAGE_PART_NODE}")
