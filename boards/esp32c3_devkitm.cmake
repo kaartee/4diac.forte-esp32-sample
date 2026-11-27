@@ -1,6 +1,13 @@
-if(MKLITTLEFS_EXE AND EXISTS "${LFS_ROOT_DIR}" AND LFS_PART_SIZE)
-    set_property(GLOBAL APPEND PROPERTY EXTRA_POST_BUILD_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E echo "LittleFS image ready at ${LFS_BIN_FILE} (offset ${LFS_PART_ADDR})"
+# SPDX-License-Identifier: Apache-2.0
+
+dt_nodelabel(STORAGE_PART_NODE NODELABEL "lfs_partition")
+if(NOT STORAGE_PART_NODE)
+    dt_nodelabel(STORAGE_PART_NODE NODELABEL "storage_partition")
+endif()
+if(STORAGE_PART_NODE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lfs_root")
+    dt_reg_addr(STORAGE_PART_ADDR PATH "${STORAGE_PART_NODE}")
+    board_finalize_runner_args(esp32
+        "--esp-flash-address=${STORAGE_PART_ADDR}"
+        "--esp-flash-file=${CMAKE_CURRENT_BINARY_DIR}/littlefs.bin"
     )
-    board_finalize_runner_args(esp32 "--esp-flash-address=${LFS_PART_ADDR}" "--esp-flash-file=${LFS_BIN_FILE}")
 endif()

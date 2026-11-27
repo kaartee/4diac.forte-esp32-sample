@@ -30,7 +30,6 @@ static struct net_mgmt_event_callback mgmt_cb;
 static struct net_dhcpv4_option_callback dhcp_cb;
 
 static forte::C4diacFORTEInstance g4diacForteInstance;
-static bool forte_started = false;
 
 static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 {
@@ -56,7 +55,7 @@ void forte_fn(void *arg1, void *arg2, void *arg3)
 		return;
 	}
 
-	// Start FORTE listening on all interfaces, default port 61499
+	// Start FORTE immediately (loads /lfs1/forte.fboot if present and binds 0.0.0.0:61499)
 	if (!g4diacForteInstance.startupNewDevice("0.0.0.0:61499")) {
 		LOG_ERR("Failed to start FORTE instance");
 		forte::arch::CForteArchitecture::deinitialize();
@@ -67,6 +66,23 @@ void forte_fn(void *arg1, void *arg2, void *arg3)
 	g4diacForteInstance.awaitDeviceShutdown();
 
 	forte::arch::CForteArchitecture::deinitialize();
+}
+
+static void start_forte_thread(void)
+{
+	const size_t stackSize = 4096;
+	k_thread_stack_t *stack = k_thread_stack_alloc(stackSize, 0);
+	if (stack == nullptr) {
+		LOG_ERR("Failed to allocate FORTE thread stack (%zu bytes)", stackSize);
+		return;
+	}
+	auto *thread = static_cast<struct k_thread *>(k_malloc(sizeof(struct k_thread)));
+	if (thread == nullptr) {
+		LOG_ERR("Failed to allocate FORTE k_thread struct");
+		k_thread_stack_free(stack);
+		return;
+	}
+	k_thread_create(thread, stack, stackSize, forte_fn, nullptr, nullptr, nullptr, 10, K_FP_REGS, K_NO_WAIT);
 }
 
 static void handler(struct net_mgmt_event_callback *cb,
@@ -103,26 +119,6 @@ static void handler(struct net_mgmt_event_callback *cb,
 		LOG_INF("Lease time[%d]: %u seconds", net_if_get_by_iface(iface),
 			iface->config.dhcpv4.lease_time);
 	}
-
-	if (forte_started) {
-		return;
-	}
-
-	// Increased stack size slightly for C++ runtime overhead
-	const size_t stackSize = 4096;
-	k_thread_stack_t *stack = k_thread_stack_alloc(stackSize, 0);
-	if (stack == nullptr) {
-		LOG_ERR("Failed to allocate FORTE thread stack (%zu bytes)", stackSize);
-		return;
-	}
-	auto *thread = static_cast<struct k_thread *>(k_malloc(sizeof(struct k_thread)));
-	if (thread == nullptr) {
-		LOG_ERR("Failed to allocate FORTE k_thread struct");
-		k_thread_stack_free(stack);
-		return;
-	}
-	forte_started = true;
-	k_thread_create(thread, stack, stackSize, forte_fn, nullptr, nullptr, nullptr, 10, K_FP_REGS, K_NO_WAIT);
 }
 
 static void option_handler(struct net_dhcpv4_option_callback *cb,
@@ -141,6 +137,8 @@ static void option_handler(struct net_dhcpv4_option_callback *cb,
 
 extern "C" int main(void)
 {
+	start_forte_thread();
+
 	LOG_INF("Run dhcpv4 client");
 
 	net_mgmt_init_event_callback(&mgmt_cb, handler,

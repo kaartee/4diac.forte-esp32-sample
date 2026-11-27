@@ -79,6 +79,8 @@ if("${BOARD}" STREQUAL "esp32_ethernet_kit")
     list(APPEND FORTE_BOARD_MODULE_ARGS -DFORTE_MODULE_ESP32ETHERNETKIT=ON)
 elseif("${BOARD}" STREQUAL "esp32c3_devkitm")
     list(APPEND FORTE_BOARD_MODULE_ARGS -DFORTE_MODULE_ESP32C3DEVKITM=ON)
+elseif("${BOARD}" STREQUAL "teensy41")
+    list(APPEND FORTE_BOARD_MODULE_ARGS -DFORTE_MODULE_TEENSY41=ON)
 endif()
 
 # 4. Build FORTE and collect all generated .a archives right after compilation
@@ -100,6 +102,7 @@ ExternalProject_Add(forte_external
         # Function Block Modules
         -DFORTE_MODULE_CONVERT=OFF
         -DFORTE_MODULE_IEC61131=ON
+        -DFORTE_MODULE_ZEPHYR=ON
         ${FORTE_BOARD_MODULE_ARGS}
         -DFORTE_IO=ON
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>
@@ -128,8 +131,20 @@ target_link_libraries(app PRIVATE
 
 # 5. Pack lfs_root/ into a LittleFS image matching lfs_partition or storage_partition in devicetree
 find_program(MKLITTLEFS_EXE mklittlefs)
+execute_process(
+    COMMAND "${PYTHON_EXECUTABLE}" -c "import littlefs"
+    RESULT_VARIABLE PYTHON_LITTLEFS_RESULT
+    OUTPUT_QUIET
+    ERROR_QUIET
+)
+
 set(LFS_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lfs_root")
 set(LFS_BIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/littlefs.bin")
+set(LFS_PACK_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack_littlefs.py")
+set(LFS_PACKER_AVAILABLE FALSE)
+if(MKLITTLEFS_EXE OR PYTHON_LITTLEFS_RESULT EQUAL 0)
+    set(LFS_PACKER_AVAILABLE TRUE)
+endif()
 
 dt_nodelabel(STORAGE_PART_NODE NODELABEL "lfs_partition")
 if(NOT STORAGE_PART_NODE)
@@ -140,15 +155,24 @@ if(STORAGE_PART_NODE)
     dt_reg_size(STORAGE_PART_SIZE PATH "${STORAGE_PART_NODE}")
 endif()
 
-if(MKLITTLEFS_EXE AND EXISTS "${LFS_ROOT_DIR}" AND STORAGE_PART_SIZE)
+if(LFS_PACKER_AVAILABLE AND EXISTS "${LFS_ROOT_DIR}" AND STORAGE_PART_SIZE)
     file(GLOB_RECURSE LFS_ROOT_FILES CONFIGURE_DEPENDS "${LFS_ROOT_DIR}/*")
-    add_custom_command(
-        OUTPUT "${LFS_BIN_FILE}"
-        COMMAND "${MKLITTLEFS_EXE}" -c "${LFS_ROOT_DIR}" -b 4096 -p 16 -s ${STORAGE_PART_SIZE} "${LFS_BIN_FILE}"
-        DEPENDS ${LFS_ROOT_FILES}
-        COMMENT "Packing ${LFS_ROOT_DIR} into LittleFS image (${LFS_BIN_FILE}) for offset ${STORAGE_PART_ADDR}"
-    )
+    if(MKLITTLEFS_EXE)
+        add_custom_command(
+            OUTPUT "${LFS_BIN_FILE}"
+            COMMAND "${MKLITTLEFS_EXE}" -c "${LFS_ROOT_DIR}" -b 4096 -p 16 -s ${STORAGE_PART_SIZE} "${LFS_BIN_FILE}"
+            DEPENDS ${LFS_ROOT_FILES}
+            COMMENT "Packing ${LFS_ROOT_DIR} into LittleFS image (${LFS_BIN_FILE}) via mklittlefs for offset ${STORAGE_PART_ADDR}"
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${LFS_BIN_FILE}"
+            COMMAND "${PYTHON_EXECUTABLE}" "${LFS_PACK_SCRIPT}" "${LFS_ROOT_DIR}" "${LFS_BIN_FILE}" "${STORAGE_PART_SIZE}"
+            DEPENDS ${LFS_ROOT_FILES} "${LFS_PACK_SCRIPT}"
+            COMMENT "Packing ${LFS_ROOT_DIR} into LittleFS image (${LFS_BIN_FILE}) via littlefs-python for offset ${STORAGE_PART_ADDR}"
+        )
+    endif()
     add_custom_target(littlefs_image ALL DEPENDS "${LFS_BIN_FILE}")
-elseif(EXISTS "${LFS_ROOT_DIR}" AND NOT MKLITTLEFS_EXE)
-    message(WARNING "mklittlefs not found on PATH; skipping ${LFS_BIN_FILE} generation")
+elseif(EXISTS "${LFS_ROOT_DIR}" AND NOT LFS_PACKER_AVAILABLE)
+    message(WARNING "Neither mklittlefs nor Python littlefs module found; skipping ${LFS_BIN_FILE} generation")
 endif()

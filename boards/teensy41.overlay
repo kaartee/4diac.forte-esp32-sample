@@ -1,16 +1,31 @@
-/*
- * Copyright (c) 2022 Grant Ramsay <grant.ramsay@hotmail.com>
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+#include <zephyr/dt-bindings/pwm/pwm.h>
 
 / {
+	aliases {
+		/* led0 is already aliased to green_led (Teensy Pin 13) in teensy4x.dtsi */
+		sw0 = &user_button0;
+		pwm0 = &flexpwm2_pwm0;
+		watchdog0 = &wdog1;
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+		user_button0: button_0 {
+			gpios = <&gpio4 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "User Button0 (Teensy Pin 2)";
+		};
+	};
+
+	zephyr,user {
+		io-channels = <&adc1 0>;
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 		lfs1: lfs1 {
 			compatible = "zephyr,fstab,littlefs";
 			mount-point = "/lfs1";
-			partition = <&storage_partition>;
+			partition = <&lfs_partition>;
 			automount;
 			read-size = <16>;
 			prog-size = <16>;
@@ -19,44 +34,43 @@
 			block-cycles = <512>;
 		};
 	};
+};
 
-	chosen {
-		zephyr,code-partition = &slot0_partition;
+&adc1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
 	};
+};
+
+&flexpwm2_pwm0 {
+	status = "okay";
+};
+
+&wdog1 {
+	status = "okay";
 };
 
 &enet {
 	status = "okay";
 };
 
-&w25q64jvxgim {
-	status = "okay";
+&w25q64jvssiq {
 	partitions {
 		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		boot_partition: partition@0 {
-			label = "mcuboot";
-			reg = <0x00000000 DT_SIZE_K(128)>;
-		};
-
-		/* The MCUBoot swap-move algorithm uses the last 2 sectors
-		* of the primary slot0 for swap status and move.
-		*/
-		slot0_partition: partition@20000 {
-			label = "image-0";
-			reg = <0x00020000 (DT_SIZE_K(1980) + DT_SIZE_K(8))>;
-		};
-
-		slot1_partition: partition@211000 {
-			label = "image-1";
-			reg = <0x00211000 DT_SIZE_K(1980)>;
-		};
-
-		storage_partition: partition@400000 {
-			label = "storage";
-			reg = <0x00400000 DT_SIZE_M(8)>;
+		/* Reserve top 512 KB of 8 MB QSPI flash (0x780000..0x800000) for LittleFS */
+		lfs_partition: partition@780000 {
+			label = "lfs_storage";
+			reg = <0x00780000 0x00080000>;
 		};
 	};
 };

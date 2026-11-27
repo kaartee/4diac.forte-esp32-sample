@@ -5,6 +5,7 @@
 	aliases {
 		led0 = &user_led0;
 		pwm0 = &pwm_led0;
+		watchdog0 = &wdt0;
 	};
 
 	leds {
@@ -77,11 +78,13 @@
 	};
 };
 
-&wifi {
+&wdt0 {
 	status = "okay";
 };
 
-/delete-node/ &storage_partition;
+&wifi {
+	status = "okay";
+};
 
 &flash0 {
 	partitions {
@@ -89,10 +92,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		boot_partition: partition@0 {
-			label = "mcuboot";
-			reg = <0x00000000 0x00010000>;
-		};
+		/delete-node/ partition@170000;
+		/delete-node/ partition@3b0000;
 
 		slot0_partition: partition@20000 {
 			label = "image-0";

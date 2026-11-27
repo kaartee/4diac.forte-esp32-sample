@@ -1,60 +1,52 @@
-/*
- * Copyright (c) 2022 Grant Ramsay <grant.ramsay@hotmail.com>
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-#include <zephyr/dt-bindings/pwm/pwm.h>
-#include <dt-bindings/pinctrl/esp32-pinctrl.h>
-
 / {
-	chosen {
-		zephyr,code-partition = &slot0_partition;
+	aliases {
+		led0 = &user_led0;
+		sw0 = &user_button0;
+		pwm0 = &pwm_led0;
+		watchdog0 = &wdt0;
 	};
-};
 
-&flash0 {
-	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		/delete-node/ partition@170000;
-
-		slot0_partition: partition@20000 {
-			label = "image-0";
-			reg = <0x00020000 0x00380000>;
+	leds {
+		compatible = "gpio-leds";
+		user_led0: led_0 {
+			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+			label = "User LED0 (GPIO17)";
 		};
 	};
-};
 
-&eth {
-	status = "okay";
-};
+	buttons {
+		compatible = "gpio-keys";
+		user_button0: button_0 {
+			gpios = <&gpio0 5 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "User Button0 (GPIO5)";
+		};
+	};
 
-&phy {
-	status = "okay";
-};
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_led0: pwm_led_0 {
+			pwms = <&ledc0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+			label = "PWM LED0 (GPIO33)";
+		};
+	};
 
-&mdio {
-	status = "okay";
-};
+	zephyr,user {
+		io-channels = <&adc0 0>;
+	};
 
-&wifi {
-	status = "disabled";
-};
-
-&adc0 {
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	channel@0 {
-		reg = <0>;
-		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
-		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
-		zephyr,resolution = <12>;
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&storage_partition>;
+			automount;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
 	};
 };
 
@@ -79,51 +71,56 @@
 	};
 };
 
-/ {
-	zephyr,user {
-		io-channels =
-			<&adc0 0>;
+&adc0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_4";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
 	};
+};
 
-	aliases {
-		led0 = &led0;
-		sw0 = &button0;
-		pwm0 = &pwm0;
-	};
+&wdt0 {
+	status = "okay";
+};
 
-	leds {
-		compatible = "gpio-leds";
-		led0: led_0 {
-			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+&eth {
+	status = "okay";
+};
+
+&phy {
+	status = "okay";
+};
+
+&mdio {
+	status = "okay";
+};
+
+&wifi {
+	status = "disabled";
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/delete-node/ partition@170000;
+		/delete-node/ partition@3b0000;
+
+		slot0_partition: partition@20000 {
+			label = "image-0";
+			reg = <0x00020000 0x00380000>;
 		};
-	};
 
-	buttons {
-		compatible = "gpio-keys";
-		button0: button_0 {
-			gpios = <&gpio0 5 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-		};
-	};
-
-	pwmleds {
-		compatible = "pwm-leds";
-		pwm0: pwm_led_gpio1_1 {
-			pwms = <&ledc0 0 PWM_HZ(100) PWM_POLARITY_NORMAL>;
-		};
-	};
-
-	fstab {
-		compatible = "zephyr,fstab";
-		lfs1: lfs1 {
-			compatible = "zephyr,fstab,littlefs";
-			mount-point = "/lfs1";
-			partition = <&storage_partition>;
-			automount;
-			read-size = <16>;
-			prog-size = <16>;
-			cache-size = <64>;
-			lookahead-size = <32>;
-			block-cycles = <512>;
+		storage_partition: partition@3b0000 {
+			label = "storage";
+			reg = <0x003b0000 0x00050000>;
 		};
 	};
 };
